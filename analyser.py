@@ -41,7 +41,6 @@ def reduce_data(
     df = pandas.read_csv(path, thousands=",")
     if fields:
         df = df[fields]
-    print(df.columns)
     return df
 
 
@@ -199,6 +198,32 @@ def get_specific_day(
     return df
 
 
+def __next_index__(index: str):
+    ym = index.split('-')
+    y, m = int(ym[0]), int(ym[1])
+    if m == 12:
+        return y + 1, 1, f"{y + 1}-1"
+    else:
+        return y, m + 1, f"{y}-{m + 1}"
+
+
+def __check_gaps__(index1, index2):
+    ym1 = index1.split('-')
+    y1, m1 = int(ym1[0]), int(ym1[1])
+    ym2 = index2.split('-')
+    y2, m2 = int(ym2[0]), int(ym2[1])
+    gap_y = y2 - y1 - 1
+    gap_m = (12 - m1) + m2 - 1
+    return gap_y * 12 + gap_m
+
+
+def __resolve_index_difference__(df_all, index_new_start):
+    while __check_gaps__(df_all.columns[-1], index_new_start) > 0:
+        _, _, next_index = __next_index__(df_all.columns[-1])
+        df_all[next_index] = pandas.Series()
+    return df_all
+
+
 def generate_date_vintage(city):
     monthly_dir = BASE_DIR.joinpath("data", "result", city, "monthly")
     if not monthly_dir.exists():
@@ -211,21 +236,19 @@ def generate_date_vintage(city):
         df = df.reset_index()
         df["year-month"] = df.date.apply(lambda xd: f"{xd.year}-{xd.month}")
         ym_start = df["year-month"][0]
-        print(df.columns)
         df = df.rename(columns={"booked": ym_start})
         df = df.set_index("year-month")
         df = df[[ym_start]]
-        print(df)
+        extra_n_row = df.shape[0] - 12
+        df = df.drop(df.tail(extra_n_row).index)
         if df_result is None:
             df_result = df
         else:
+            df_result = __resolve_index_difference__(df_result, ym_start)
             df_result = pandas.concat([df_result, df], axis=1)
-        print(df_result)
     output_path = BASE_DIR.joinpath("data", "result", city, "vintage", f"{city}-vintage-all.csv")
     output_path.parent.mkdir(parents=True, exist_ok=True)
     df_result.to_csv(output_path)
-
-
 
 
 if __name__ == "__main__":
@@ -233,8 +256,7 @@ if __name__ == "__main__":
         process_month(city=sys.argv[2], year=int(sys.argv[3]), month=int(sys.argv[4]))
     elif sys.argv[1] == "day":
         df = get_specific_day(city=sys.argv[2], month=int(sys.argv[3]), day=int(sys.argv[4]))
-        print(df)
-    elif sys.argv[1] =="allmonths":
+    elif sys.argv[1] == "allmonths":
         process_all_months(city=sys.argv[2])
-    elif sys.argv[1] =="vintage":
+    elif sys.argv[1] == "vintage":
         generate_date_vintage(city=sys.argv[2])
