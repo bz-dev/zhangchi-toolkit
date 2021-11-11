@@ -26,7 +26,7 @@ def worker(link):
     year_month = match.group(1)
     dir_dest = BASE_DIR.joinpath('data', 'downloads', link['Region'])
     dir_dest.mkdir(parents=True, exist_ok=True)
-    dest = BASE_DIR.joinpath('downloads', link['Region'], f'{year_month}-{link["Data"]}.csv.gz')
+    dest = BASE_DIR.joinpath('data', 'downloads', link['Region'], f'{year_month}-{link["Data"]}.csv.gz')
     if not dest.exists():
         try:
             urlretrieve(link['Link'], dest)
